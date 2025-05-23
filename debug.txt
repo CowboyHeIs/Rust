@@ -12,119 +12,16 @@ Never apologize or use sarcasm.
 All responses must be detailed and accurate.
 
 Files.txt content:
-C:\Users\heinr\Projects\Rust\src\main.rs : ```
-use std::net::TcpListener;
-
-
-fn main() {
-    let listener = TcpListener::bind("127.0.0.1:7878").unwrap();
-
-
-    for stream in listener.incoming() {
-        let stream = stream.unwrap();
-
-
-        println!("Connection established!");
-    }
-}
-```
-C:\Users\heinr\Projects\Rust\src\main.rs : ```
-use std::{
-    fs,
-    io::{prelude::*, BufReader},
-    net::{TcpListener, TcpStream},
-};
-// --snip--
-
-
-fn handle_connection(mut stream: TcpStream) {
-    let buf_reader = BufReader::new(&mut stream);
-    let http_request: Vec<_> = buf_reader
-        .lines()
-        .map(|result| result.unwrap())
-        .take_while(|line| !line.is_empty())
-        .collect();
-
-
-    let status_line = "HTTP/1.1 200 OK";
-    let contents = fs::read_to_string("hello.html").unwrap();
-    let length = contents.len();
-
-
-    let response =
-        format!("{status_line}\r\nContent-Length: {length}\r\n\r\n{contents}");
-
-
-    stream.write_all(response.as_bytes()).unwrap();
-}
-```
-C:\Users\heinr\Projects\Rust\src\main.rs : ```
+src\main.rs : ```
 use std::{
     fs,
     io::{prelude::*, BufReader},
     net::{TcpListener, TcpStream},
     thread,
+    time::Duration,
 };
 
 
-fn handle_connection(mut stream: TcpStream) {
-    let buf_reader = BufReader::new(&mut stream);
-    let http_request: Vec<_> = buf_reader
-        .lines()
-        .map(|result| result.unwrap())
-        .take_while(|line| !line.is_empty())
-        .collect();
-
-    let status_line = "HTTP/1.1 200 OK";
-    let contents = fs::read_to_string("html/hello.html").unwrap();
-    let length = contents.len();
-
-    let response =
-        format!("{status_line}\r\nContent-Length: {length}\r\n\r\n{contents}");
-
-    stream.write_all(response.as_bytes()).unwrap();
-}
-
-fn main() {
-    let listener = TcpListener::bind("127.0.0.1:7878").unwrap();
-
-    for stream in listener.incoming() {
-        let stream = stream.unwrap();
-        println!("Connection established!");
-
-        thread::spawn(|| {
-            handle_connection(stream);
-        });
-    }
-}```
-
-
-History:
-- User: user wants to start rust server based on main.rs what's missing?
-- AI: Assistant:
-- User: can you fix main.rs?
-- AI: Assistant: Missing error handling for incoming connections. Fixing main.rs:
-- User: how to run main.rs?
-- AI: Assistant: To run `main.rs`, follow these steps:
-- User: cargo run not working elaborate possible problem
-- AI: Assistant: Possible problems with "cargo run" include missing Cargo.toml file, incorrect project structure, or Rust toolchain issues. Check for Cargo.toml in project root and ensure proper setup. Verify Rust installation with `rustc --version`.
-- User: Cargo.toml not exist yet what do?
-- AI: Assistant:
-- User: where place Cargo.toml?
-- AI: Place Cargo.toml at the root of the project directory.
-- User: what's wrong with main.rs?
-- AI: The current implementation lacks concurrency handling for incoming connections. This needs to be fixed to properly handle multiple simultaneous connections.
-
-Last:
-- User: fix main.rs
-- AI: Missing spawn threads in main.rs:
-
-User: make main.rs show html/error.html when /bad
-AI:
-Response -> Assistant:
-Modify `handle_connection` function to check request path and serve appropriate HTML file:
-
-```rust
 fn handle_connection(mut stream: TcpStream) {
     let buf_reader = BufReader::new(&mut stream);
     let http_request: Vec<_> = buf_reader
@@ -151,8 +48,93 @@ fn handle_connection(mut stream: TcpStream) {
             "{status_line}\r\nContent-Length: {length}\r\n\r\n{contents}"
         ));
     }
+    let (status_line, filename) = match &request_line[..] {
+        "GET / HTTP/1.1" => ("HTTP/1.1 200 OK", "hello.html"),
+        "GET /sleep HTTP/1.1" => {
+            thread::sleep(Duration::from_secs(10));
+            ("HTTP/1.1 200 OK", "hello.html")
+        }
+        _ => ("HTTP/1.1 404 NOT FOUND", "404.html"),
+    };
+
 
     stream.write_all(response_output.as_bytes()).unwrap();
+}
+
+fn main() {
+    let listener = TcpListener::bind("127.0.0.1:7878").unwrap();
+
+    for stream in listener.incoming() {
+        let stream = stream.unwrap();
+        println!("Connection established!");
+
+        thread::spawn(|| {
+            handle_connection(stream);
+        });
+    }
+}```
+
+
+User: find and fix problem in main.rs.
+AI:
+Response -> Problem:
+- Duplicate HTTP response generation logic
+- Unused variables: status_line, filename
+- Missing "Connection: close" header
+
+Fix:
+```rust
+use std::{
+    fs,
+    io::{prelude::*, BufReader},
+    net::{TcpListener, TcpStream},
+    thread,
+    time::Duration,
+};
+
+fn handle_connection(mut stream: TcpStream) {
+    let buf_reader = BufReader::new(&mut stream);
+    let http_request: Vec<_> = buf_reader
+        .lines()
+        .map(|result| result.unwrap())
+        .take_while(|line| !line.is_empty())
+        .collect();
+
+    let request_line = &http_request[0];
+    let mut response_output = String::new();
+
+    let (status, filename) = match &request_line[..] {
+        "GET / HTTP/1.1" => ("200 OK", "hello.html"),
+        "GET /sleep HTTP/1.1" => {
+            thread::sleep(Duration::from_secs(10));
+            ("200 OK", "hello.html")
+        }
+        "GET /bad" => ("404 NOT FOUND", "error.html"),
+        _ => ("404 NOT FOUND", "404.html"),
+    };
+
+    let status_line = format!("HTTP/1.1 {}", status);
+    let contents = fs::read_to_string(format!("html/{}", filename)).unwrap();
+    let length = contents.len();
+
+    response_output.push_str(&format!(
+        "{status_line}\r\nContent-Length: {length}\r\nConnection: close\r\n\r\n{contents}"
+    ));
+
+    stream.write_all(response_output.as_bytes()).unwrap();
+}
+
+fn main() {
+    let listener = TcpListener::bind("127.0.0.1:7878").unwrap();
+
+    for stream in listener.incoming() {
+        let stream = stream.unwrap();
+        println!("Connection established!");
+
+        thread::spawn(|| {
+            handle_connection(stream);
+        });
+    }
 }
 ```
 

@@ -1,16 +1,36 @@
 @echo off
 setlocal enabledelayedexpansion
 
-:: Replace / with \ in filepath
+:: Normalize path and get absolute path
 set "file=%~1"
 set "file=!file:/=\!"
 
-:: Direct match
-if not exist "!file!" (
-  :: Search subfolders if not found
+for %%A in ("%file%") do set "absfile=%%~fA"
+
+:: Get current dir absolute path
+set "curdir=%cd%"
+set "curdir=!curdir:/=\!"
+
+:: Compute relative path if possible
+set "relfile=!absfile:%curdir%\=!"
+
+:: If not relative (outside cwd), fallback to filename only
+if "!relfile!"=="!absfile!" (
+  for %%A in ("!absfile!") do set "relfile=%%~nxA"
+)
+
+:: Direct match fallback: if absfile not exists, try find by name
+if not exist "!absfile!" (
+  echo File not found directly. Searching...
   for /r %%F in ("*") do (
     if /i "%%~nxF"=="%~nx1" (
-      set "file=%%F"
+      set "absfile=%%F"
+      :: recalc relfile
+      set "absfile=!absfile:/=\!"
+      set "relfile=!absfile:%curdir%\=!"
+      if "!relfile!"=="!absfile!" (
+        for %%A in ("!absfile!") do set "relfile=%%~nxA"
+      )
       goto :found
     )
   )
@@ -19,9 +39,31 @@ if not exist "!file!" (
 )
 
 :found
+
+:: Debugging statements to check paths
+echo Processing file: !absfile!
+echo Relative path: %relfile%
+
+set "tmp=files_tmp.txt"
+set copy=1
+break > "%tmp%"
+
+for /f "usebackq delims=" %%L in (`type files.txt 2^>nul`) do (
+  set "line=%%L"
+  echo !line! | findstr /i /c:"%relfile% : ```" 2>nul
+  if not errorlevel 1 (
+    set copy=0
+  ) else (
+    echo !line! | findstr "^```$" 2>nul
+    if not errorlevel 1 set copy=1
+    if !copy! equ 1 >> "%tmp%" echo(!line!
+  )
+)
+move /y "%tmp%" files.txt >nul
+
+:: Language detect
 set "ext=%~x1"
 set "lang="
-
 if /i "%ext%"==".py" set "lang=python"
 if /i "%ext%"==".js" set "lang=javascript"
 if /i "%ext%"==".html" set "lang=html"
@@ -41,13 +83,16 @@ if /i "%ext%"==".go" set "lang=go"
 if /i "%ext%"==".ts" set "lang=typescript"
 if /i "%ext%"==".bat" set "lang=batch"
 
+:: Append new block with relfile header
 if defined lang (
-  >> files.txt echo !file! : ```!lang!
+  >> files.txt echo %relfile% : ```%lang%
 ) else (
-  >> files.txt echo !file! : ```
+  >> files.txt echo %relfile% : ```
 )
 
-type "!file!" >> files.txt
+type "!absfile!" >> files.txt
 >> files.txt echo ```
-echo !file! : Added
+
+echo !absfile! : Added
+
 exit /b 0
