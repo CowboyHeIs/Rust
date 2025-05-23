@@ -5,7 +5,6 @@ use std::{
     thread,
 };
 
-// --snip--
 
 fn handle_connection(mut stream: TcpStream) {
     let buf_reader = BufReader::new(&mut stream);
@@ -15,14 +14,26 @@ fn handle_connection(mut stream: TcpStream) {
         .take_while(|line| !line.is_empty())
         .collect();
 
-    let status_line = "HTTP/1.1 200 OK";
-    let contents = fs::read_to_string("hello.html").unwrap();
-    let length = contents.len();
+    let request_line = &http_request[0];
+    let mut response_output = String::new();
 
-    let response =
-        format!("{status_line}\r\nContent-Length: {length}\r\n\r\n{contents}");
+    if request_line.starts_with("GET /bad") {
+        let status_line = "HTTP/1.1 404 NOT FOUND";
+        let contents = fs::read_to_string("html/error.html").unwrap();
+        let length = contents.len();
+        response_output.push_str(&format!(
+            "{status_line}\r\nContent-Length: {length}\r\n\r\n{contents}"
+        ));
+    } else {
+        let status_line = "HTTP/1.1 200 OK";
+        let contents = fs::read_to_string("html/hello.html").unwrap();
+        let length = contents.len();
+        response_output.push_str(&format!(
+            "{status_line}\r\nContent-Length: {length}\r\n\r\n{contents}"
+        ));
+    }
 
-    stream.write_all(response.as_bytes()).unwrap();
+    stream.write_all(response_output.as_bytes()).unwrap();
 }
 
 fn main() {
@@ -32,7 +43,6 @@ fn main() {
         let stream = stream.unwrap();
         println!("Connection established!");
 
-        // Spawn thread to handle connection
         thread::spawn(|| {
             handle_connection(stream);
         });

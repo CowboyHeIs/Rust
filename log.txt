@@ -13,21 +13,15 @@ history:
 - AI: Place Cargo.toml at the root of the project directory.
 - User: what's wrong with main.rs?
 - AI: The current implementation lacks concurrency handling for incoming connections. This needs to be fixed to properly handle multiple simultaneous connections.
-
-last:
 - User: fix main.rs
 - AI: Missing spawn threads in main.rs:
 
+last:
+- User: make main.rs show html/error.html when /bad
+- AI: Assistant:
+Modify `handle_connection` function to check request path and serve appropriate HTML file:
+
 ```rust
-use std::{
-    fs,
-    io::{prelude::*, BufReader},
-    net::{TcpListener, TcpStream},
-    thread,
-};
-
-// --snip--
-
 fn handle_connection(mut stream: TcpStream) {
     let buf_reader = BufReader::new(&mut stream);
     let http_request: Vec<_> = buf_reader
@@ -36,29 +30,25 @@ fn handle_connection(mut stream: TcpStream) {
         .take_while(|line| !line.is_empty())
         .collect();
 
-    let status_line = "HTTP/1.1 200 OK";
-    let contents = fs::read_to_string("hello.html").unwrap();
-    let length = contents.len();
+    let request_line = &http_request[0];
+    let mut response_output = String::new();
 
-    let response =
-        format!("{status_line}\r\nContent-Length: {length}\r\n\r\n{contents}");
-
-    stream.write_all(response.as_bytes()).unwrap();
-}
-
-fn main() {
-    let listener = TcpListener::bind("127.0.0.1:7878").unwrap();
-
-    for stream in listener.incoming() {
-        let stream = stream.unwrap();
-        println!("Connection established!");
-
-        // Spawn thread to handle connection
-        thread::spawn(|| {
-            handle_connection(stream);
-        });
+    if request_line.starts_with("GET /bad") {
+        let status_line = "HTTP/1.1 404 NOT FOUND";
+        let contents = fs::read_to_string("html/error.html").unwrap();
+        let length = contents.len();
+        response_output.push_str(&format!(
+            "{status_line}\r\nContent-Length: {length}\r\n\r\n{contents}"
+        ));
+    } else {
+        let status_line = "HTTP/1.1 200 OK";
+        let contents = fs::read_to_string("html/hello.html").unwrap();
+        let length = contents.len();
+        response_output.push_str(&format!(
+            "{status_line}\r\nContent-Length: {length}\r\n\r\n{contents}"
+        ));
     }
+
+    stream.write_all(response_output.as_bytes()).unwrap();
 }
 ```
-
-This version adds `thread::spawn` to handle each connection concurrently.

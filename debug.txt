@@ -58,31 +58,7 @@ fn handle_connection(mut stream: TcpStream) {
     stream.write_all(response.as_bytes()).unwrap();
 }
 ```
-
-
-History:
-- User: user wants to start rust server based on main.rs what's missing?
-- AI: Assistant:
-- User: can you fix main.rs?
-- AI: Assistant: Missing error handling for incoming connections. Fixing main.rs:
-- User: how to run main.rs?
-- AI: Assistant: To run `main.rs`, follow these steps:
-- User: cargo run not working elaborate possible problem
-- AI: Assistant: Possible problems with "cargo run" include missing Cargo.toml file, incorrect project structure, or Rust toolchain issues. Check for Cargo.toml in project root and ensure proper setup. Verify Rust installation with `rustc --version`.
-- User: Cargo.toml not exist yet what do?
-- AI: Assistant:
-- User: where place Cargo.toml?
-- AI: Place Cargo.toml at the root of the project directory.
-
-Last:
-- User: what's wrong with main.rs?
-- AI: The current implementation lacks concurrency handling for incoming connections. This needs to be fixed to properly handle multiple simultaneous connections.
-
-User: fix main.rs
-AI:
-Response -> Missing spawn threads in main.rs:
-
-```rust
+C:\Users\heinr\Projects\Rust\src\main.rs : ```
 use std::{
     fs,
     io::{prelude::*, BufReader},
@@ -90,7 +66,6 @@ use std::{
     thread,
 };
 
-// --snip--
 
 fn handle_connection(mut stream: TcpStream) {
     let buf_reader = BufReader::new(&mut stream);
@@ -101,7 +76,7 @@ fn handle_connection(mut stream: TcpStream) {
         .collect();
 
     let status_line = "HTTP/1.1 200 OK";
-    let contents = fs::read_to_string("hello.html").unwrap();
+    let contents = fs::read_to_string("html/hello.html").unwrap();
     let length = contents.len();
 
     let response =
@@ -117,13 +92,67 @@ fn main() {
         let stream = stream.unwrap();
         println!("Connection established!");
 
-        // Spawn thread to handle connection
         thread::spawn(|| {
             handle_connection(stream);
         });
     }
+}```
+
+
+History:
+- User: user wants to start rust server based on main.rs what's missing?
+- AI: Assistant:
+- User: can you fix main.rs?
+- AI: Assistant: Missing error handling for incoming connections. Fixing main.rs:
+- User: how to run main.rs?
+- AI: Assistant: To run `main.rs`, follow these steps:
+- User: cargo run not working elaborate possible problem
+- AI: Assistant: Possible problems with "cargo run" include missing Cargo.toml file, incorrect project structure, or Rust toolchain issues. Check for Cargo.toml in project root and ensure proper setup. Verify Rust installation with `rustc --version`.
+- User: Cargo.toml not exist yet what do?
+- AI: Assistant:
+- User: where place Cargo.toml?
+- AI: Place Cargo.toml at the root of the project directory.
+- User: what's wrong with main.rs?
+- AI: The current implementation lacks concurrency handling for incoming connections. This needs to be fixed to properly handle multiple simultaneous connections.
+
+Last:
+- User: fix main.rs
+- AI: Missing spawn threads in main.rs:
+
+User: make main.rs show html/error.html when /bad
+AI:
+Response -> Assistant:
+Modify `handle_connection` function to check request path and serve appropriate HTML file:
+
+```rust
+fn handle_connection(mut stream: TcpStream) {
+    let buf_reader = BufReader::new(&mut stream);
+    let http_request: Vec<_> = buf_reader
+        .lines()
+        .map(|result| result.unwrap())
+        .take_while(|line| !line.is_empty())
+        .collect();
+
+    let request_line = &http_request[0];
+    let mut response_output = String::new();
+
+    if request_line.starts_with("GET /bad") {
+        let status_line = "HTTP/1.1 404 NOT FOUND";
+        let contents = fs::read_to_string("html/error.html").unwrap();
+        let length = contents.len();
+        response_output.push_str(&format!(
+            "{status_line}\r\nContent-Length: {length}\r\n\r\n{contents}"
+        ));
+    } else {
+        let status_line = "HTTP/1.1 200 OK";
+        let contents = fs::read_to_string("html/hello.html").unwrap();
+        let length = contents.len();
+        response_output.push_str(&format!(
+            "{status_line}\r\nContent-Length: {length}\r\n\r\n{contents}"
+        ));
+    }
+
+    stream.write_all(response_output.as_bytes()).unwrap();
 }
 ```
-
-This version adds `thread::spawn` to handle each connection concurrently.
 

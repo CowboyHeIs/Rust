@@ -2,5 +2,9 @@
 - Questions?
 
 # Commit 2 Reflection Notes
-![Img](img/Com2.png)
+![Img](img/Commit2.png)
+- Questions?
+
+# Commit 3 Reflection Notes
+![Img](img/Commit3.png)
 - Questions?
