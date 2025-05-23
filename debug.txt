@@ -1,0 +1,129 @@
+Prompt -> Personality:
+You must respond concisely, never friendly or aggresive.
+Use terse style, avoid both positiviy and negativity.
+Must be strict with words.
+Assistant must never use "I", "My", "you", or "your", it must use "Assistant" or "User".
+Assistant must never use "is", "are", "of", "am", "due to", "the", "a", and other unnecessary words that lengthen responses.
+
+UserInfo:
+You must call yourself "Assistant" while I'm "User".
+User hates long sentences and filler words.
+Never apologize or use sarcasm.
+All responses must be detailed and accurate.
+
+Files.txt content:
+C:\Users\heinr\Projects\Rust\src\main.rs : ```
+use std::net::TcpListener;
+
+
+fn main() {
+    let listener = TcpListener::bind("127.0.0.1:7878").unwrap();
+
+
+    for stream in listener.incoming() {
+        let stream = stream.unwrap();
+
+
+        println!("Connection established!");
+    }
+}
+```
+C:\Users\heinr\Projects\Rust\src\main.rs : ```
+use std::{
+    fs,
+    io::{prelude::*, BufReader},
+    net::{TcpListener, TcpStream},
+};
+// --snip--
+
+
+fn handle_connection(mut stream: TcpStream) {
+    let buf_reader = BufReader::new(&mut stream);
+    let http_request: Vec<_> = buf_reader
+        .lines()
+        .map(|result| result.unwrap())
+        .take_while(|line| !line.is_empty())
+        .collect();
+
+
+    let status_line = "HTTP/1.1 200 OK";
+    let contents = fs::read_to_string("hello.html").unwrap();
+    let length = contents.len();
+
+
+    let response =
+        format!("{status_line}\r\nContent-Length: {length}\r\n\r\n{contents}");
+
+
+    stream.write_all(response.as_bytes()).unwrap();
+}
+```
+
+
+History:
+- User: user wants to start rust server based on main.rs what's missing?
+- AI: Assistant:
+- User: can you fix main.rs?
+- AI: Assistant: Missing error handling for incoming connections. Fixing main.rs:
+- User: how to run main.rs?
+- AI: Assistant: To run `main.rs`, follow these steps:
+- User: cargo run not working elaborate possible problem
+- AI: Assistant: Possible problems with "cargo run" include missing Cargo.toml file, incorrect project structure, or Rust toolchain issues. Check for Cargo.toml in project root and ensure proper setup. Verify Rust installation with `rustc --version`.
+- User: Cargo.toml not exist yet what do?
+- AI: Assistant:
+- User: where place Cargo.toml?
+- AI: Place Cargo.toml at the root of the project directory.
+
+Last:
+- User: what's wrong with main.rs?
+- AI: The current implementation lacks concurrency handling for incoming connections. This needs to be fixed to properly handle multiple simultaneous connections.
+
+User: fix main.rs
+AI:
+Response -> Missing spawn threads in main.rs:
+
+```rust
+use std::{
+    fs,
+    io::{prelude::*, BufReader},
+    net::{TcpListener, TcpStream},
+    thread,
+};
+
+// --snip--
+
+fn handle_connection(mut stream: TcpStream) {
+    let buf_reader = BufReader::new(&mut stream);
+    let http_request: Vec<_> = buf_reader
+        .lines()
+        .map(|result| result.unwrap())
+        .take_while(|line| !line.is_empty())
+        .collect();
+
+    let status_line = "HTTP/1.1 200 OK";
+    let contents = fs::read_to_string("hello.html").unwrap();
+    let length = contents.len();
+
+    let response =
+        format!("{status_line}\r\nContent-Length: {length}\r\n\r\n{contents}");
+
+    stream.write_all(response.as_bytes()).unwrap();
+}
+
+fn main() {
+    let listener = TcpListener::bind("127.0.0.1:7878").unwrap();
+
+    for stream in listener.incoming() {
+        let stream = stream.unwrap();
+        println!("Connection established!");
+
+        // Spawn thread to handle connection
+        thread::spawn(|| {
+            handle_connection(stream);
+        });
+    }
+}
+```
+
+This version adds `thread::spawn` to handle each connection concurrently.
+

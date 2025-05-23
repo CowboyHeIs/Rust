@@ -1,0 +1,12 @@
+NoDelete.txt
+ai.py
+ai.bat
+debug.txt
+log.txt
+personality.txt
+userInfo.txt
+files.txt
+read.bat
+Cargo.toml
+README.md
+hello.html
