@@ -9,4 +9,4 @@ files.txt
 read.bat
 Cargo.toml
 README.md
-hello.html
+Cargo.lock
