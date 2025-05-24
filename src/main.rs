@@ -6,6 +6,7 @@ use std::{
     time::Duration,
 };
 
+
 fn handle_connection(mut stream: TcpStream) {
     let buf_reader = BufReader::new(&mut stream);
     let http_request: Vec<_> = buf_reader
@@ -17,23 +18,30 @@ fn handle_connection(mut stream: TcpStream) {
     let request_line = &http_request[0];
     let mut response_output = String::new();
 
-    let (status, filename) = match &request_line[..] {
-        "GET / HTTP/1.1" => ("200 OK", "hello.html"),
+    if request_line.starts_with("GET /bad") {
+        let status_line = "HTTP/1.1 404 NOT FOUND";
+        let contents = fs::read_to_string("html/error.html").unwrap();
+        let length = contents.len();
+        response_output.push_str(&format!(
+            "{status_line}\r\nContent-Length: {length}\r\n\r\n{contents}"
+        ));
+    } else {
+        let status_line = "HTTP/1.1 200 OK";
+        let contents = fs::read_to_string("html/hello.html").unwrap();
+        let length = contents.len();
+        response_output.push_str(&format!(
+            "{status_line}\r\nContent-Length: {length}\r\n\r\n{contents}"
+        ));
+    }
+    let (status_line, filename) = match &request_line[..] {
+        "GET / HTTP/1.1" => ("HTTP/1.1 200 OK", "hello.html"),
         "GET /sleep HTTP/1.1" => {
             thread::sleep(Duration::from_secs(10));
-            ("200 OK", "hello.html")
+            ("HTTP/1.1 200 OK", "hello.html")
         }
-        "GET /bad" => ("404 NOT FOUND", "error.html"),
-        _ => ("404 NOT FOUND", "404.html"),
+        _ => ("HTTP/1.1 404 NOT FOUND", "404.html"),
     };
 
-    let status_line = format!("HTTP/1.1 {}", status);
-    let contents = fs::read_to_string(format!("html/{}", filename)).unwrap();
-    let length = contents.len();
-
-    response_output.push_str(&format!(
-        "{status_line}\r\nContent-Length: {length}\r\nConnection: close\r\n\r\n{contents}"
-    ));
 
     stream.write_all(response_output.as_bytes()).unwrap();
 }
