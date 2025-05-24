@@ -11,3 +11,6 @@
 
 # Commit 4 Refletion Notes
 - Questions?
+
+# Commit 5 Reflection Notes
+- That took a long time because the OneDrive auto update that corrupts files
