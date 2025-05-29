@@ -2,12 +2,13 @@ import sys, requests, subprocess, os, json, re
 sys.stdout.reconfigure(encoding='utf-8')
 AI = "devstral"
 
+#{parse log.txt from config}
 def parse_log():
     H = []
     L = []
     m = None
-    if os.path.exists("log.txt"):
-        with open("log.txt", "r", encoding="utf-8") as f:
+    if os.path.exists("config/log.txt"):
+        with open("config/log.txt", "r", encoding="utf-8") as f:
             for ln in f:
                 l = ln.rstrip('\n')
                 low = l.lower()
@@ -41,23 +42,25 @@ def parse_log():
 
     return H, group_blocks(L)
 
+#{read files.txt from config}
 def read_files():
-    if not os.path.exists("files.txt"):
+    if not os.path.exists("config/files.txt"):
         return ""
-    with open("files.txt", "r", encoding="utf-8") as f:
+    with open("config/files.txt", "r", encoding="utf-8") as f:
         return f.read()
 
+#{main run}
 def Run(Msg):
     Hst, LstBlk = parse_log()
 
     P = ""
-    if os.path.exists("personality.txt"):
-        with open("personality.txt", "r", encoding="utf-8") as p:
+    if os.path.exists("config/personality.txt"):
+        with open("config/personality.txt", "r", encoding="utf-8") as p:
             P = p.read().strip()
 
     U = ""
-    if os.path.exists("userInfo.txt"):
-        with open("userInfo.txt", "r", encoding="utf-8") as u:
+    if os.path.exists("config/userInfo.txt"):
+        with open("config/userInfo.txt", "r", encoding="utf-8") as u:
             U = u.read().strip()
 
     Ftxt = read_files()
@@ -89,7 +92,7 @@ def Run(Msg):
             print(f"File not found: {f}")
             return
 
-    with open("debug.txt", "w", encoding="utf-8") as d:
+    with open("config/debug.txt", "w", encoding="utf-8") as d:
         d.write(f"Prompt -> {Pr}\n")
 
     r = requests.post("http://127.0.0.1:11434/api/generate",
@@ -107,14 +110,14 @@ def Run(Msg):
     resp = resp.strip()
     print("Response ->", resp)
 
-    with open("debug.txt", "a", encoding="utf-8") as d:
+    with open("config/debug.txt", "a", encoding="utf-8") as d:
         d.write(f"Response -> {resp}\n\n")
 
     if LstBlk:
         for blk in LstBlk:
             Hst.extend([line.rstrip('\n') for line in blk])
 
-    with open("log.txt", "w", encoding="utf-8") as f:
+    with open("config/log.txt", "w", encoding="utf-8") as f:
         f.write("history:\n")
         if Hst:
             f.write("\n".join(Hst).rstrip() + "\n\n")
@@ -130,19 +133,6 @@ def Run(Msg):
                 f.write(ln + "\n")
         else:
             f.write("- AI:\n")
-
-    for l in resp.splitlines():
-        if l.startswith("CMD:"):
-            subprocess.run(l[4:].strip(), shell=True)
-        elif l.startswith("READ:"):
-            f = l[5:].strip()
-            if os.path.exists(f):
-                with open(f, "r", encoding='utf-8') as r:
-                    print(r.read())
-        elif l.startswith("WRITE:"):
-            f, d = l[6:].split("::", 1)
-            with open(f.strip(), "w", encoding='utf-8') as w:
-                w.write(d.strip())
 
 if __name__ == "__main__":
     M = " ".join(sys.argv[1:])

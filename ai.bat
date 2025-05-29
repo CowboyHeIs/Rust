@@ -2,11 +2,11 @@
 setlocal enabledelayedexpansion
 set PROMPT=
 
-:: Default keep list
-set "ND_LIST=ai.py;ai.bat;log.txt;debug.txt;NoDelete.txt;files.txt"
+:: Keep only essential and config files
+set "ND_LIST=ai.py;ai.bat;read.bat;README.md"
 
-if exist NoDelete.txt (
-  for /f "usebackq delims=" %%L in ("NoDelete.txt") do (
+if exist config/NoDelete.txt (
+  for /f "usebackq delims=" %%L in ("config/NoDelete.txt") do (
     if "!ND_LIST!"=="" (
       set "ND_LIST=%%L"
     ) else (
@@ -26,7 +26,7 @@ shift
 goto loop
 
 :run
-python ai.py "!PROMPT!" < log.txt > ai_response.txt
+python ai.py "!PROMPT!" < config/log.txt > ai_response.txt
 
 type ai_response.txt
 

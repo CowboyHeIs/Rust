@@ -44,11 +44,12 @@ if not exist "!absfile!" (
 echo Processing file: !absfile!
 echo Relative path: %relfile%
 
-set "tmp=files_tmp.txt"
+set "tmp=config/files_tmp.txt"
+set "main=config/files.txt"
 set copy=1
 break > "%tmp%"
 
-for /f "usebackq delims=" %%L in (`type files.txt 2^>nul`) do (
+for /f "usebackq delims=" %%L in (`type "%main%" 2^>nul`) do (
   set "line=%%L"
   echo !line! | findstr /i /c:"%relfile% : ```" 2>nul
   if not errorlevel 1 (
@@ -59,7 +60,7 @@ for /f "usebackq delims=" %%L in (`type files.txt 2^>nul`) do (
     if !copy! equ 1 >> "%tmp%" echo(!line!
   )
 )
-move /y "%tmp%" files.txt >nul
+move /y "%tmp%" "%main%" >nul
 
 :: Language detect
 set "ext=%~x1"
@@ -85,13 +86,13 @@ if /i "%ext%"==".bat" set "lang=batch"
 
 :: Append new block with relfile header
 if defined lang (
-  >> files.txt echo %relfile% : ```%lang%
+  >> "%main%" echo %relfile% : ```%lang%
 ) else (
-  >> files.txt echo %relfile% : ```
+  >> "%main%" echo %relfile% : ```
 )
 
-type "!absfile!" >> files.txt
->> files.txt echo ```
+type "!absfile!" >> "%main%"
+>> "%main%" echo ```
 
 echo !absfile! : Added
 
